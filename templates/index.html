@@ -3,7 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Advanced Image Cropper</title>
+    <title>WhatsApp-Style Image Cropper</title>
+    
+    <!-- Cropper.js CSS -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.2/cropper.min.css" />
+
     <style>
         * {
             box-sizing: border-box;
@@ -29,132 +33,123 @@
             box-shadow: 0 0 10px #ccc;
         }
         .upload-area {
-            border: 2px dashed #ccc;
-            padding: 30px;
             text-align: center;
-            cursor: pointer;
-        }
-        .upload-area:hover {
-            background: #f0f0f0;
+            margin-bottom: 20px;
         }
         input[type="file"] {
-            display: none;
-        }
-        .preview {
-            display: flex;
-            justify-content: center;
-            margin-top: 20px;
+            display: block;
+            margin: 0 auto;
         }
         img {
             max-width: 100%;
-            height: auto;
-            border: 2px solid #ddd;
-            border-radius: 5px;
         }
-        canvas {
-            border: 2px solid #ddd;
-        }
-        .controls {
-            display: flex;
-            justify-content: space-between;
-            margin-top: 20px;
-        }
-        .controls label {
-            margin-right: 10px;
+        .cropper-container {
+            margin: 20px auto;
+            max-width: 100%;
+            max-height: 500px;
         }
         button {
-            padding: 10px 20px;
-            color: #fff;
+            display: block;
+            width: 100%;
             background: #28a745;
+            color: white;
             border: none;
+            padding: 10px;
             cursor: pointer;
         }
         button:hover {
             background: #218838;
         }
-        .result {
-            margin-top: 20px;
-        }
         .result img {
             max-width: 100%;
-            border: 3px solid #4caf50;
-            border-radius: 10px;
+            margin-top: 20px;
+            border: 2px solid #4caf50;
         }
     </style>
 </head>
 <body>
 
-<h1>🔥 Advanced Image Cropper</h1>
+<h1>🔥 WhatsApp-Style Image Cropper</h1>
 
 <div class="container">
-    <div class="upload-area" onclick="document.getElementById('fileInput').click()">
-        Click here to upload an image
+
+    <div class="upload-area">
         <input type="file" id="fileInput" accept="image/*">
     </div>
 
-    <div class="preview" id="preview"></div>
-
-    <div class="controls">
-        <div>
-            <label>X: <input type="number" id="x" value="50"></label>
-            <label>Y: <input type="number" id="y" value="50"></label>
-            <label>Width: <input type="number" id="w" value="200"></label>
-            <label>Height: <input type="number" id="h" value="200"></label>
-        </div>
-        <button onclick="cropImage()">Crop Image</button>
+    <div class="cropper-container">
+        <img id="image" src="" alt="Upload an image">
     </div>
 
+    <button onclick="cropImage()">Crop & Save</button>
+
     <div class="result" id="result"></div>
+
 </div>
 
+<!-- Cropper.js Script -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.2/cropper.min.js"></script>
 <script>
-    let img = null;
-    const preview = document.getElementById('preview');
+    let cropper;
+    const image = document.getElementById('image');
+    const fileInput = document.getElementById('fileInput');
 
-    document.getElementById('fileInput').addEventListener('change', function(event) {
+    fileInput.addEventListener('change', (event) => {
         const file = event.target.files[0];
         if (file) {
             const reader = new FileReader();
-            reader.onload = function(e) {
-                preview.innerHTML = `<img src="${e.target.result}" id="image">`;
-                img = document.getElementById('image');
+            reader.onload = (e) => {
+                image.src = e.target.result;
+                if (cropper) {
+                    cropper.destroy();
+                }
+                cropper = new Cropper(image, {
+                    aspectRatio: 0,  
+                    viewMode: 1,
+                    dragMode: 'crop',
+                    autoCropArea: 0.8,  
+                    minContainerWidth: 400,
+                    minContainerHeight: 400
+                });
             };
             reader.readAsDataURL(file);
         }
     });
 
     async function cropImage() {
-        if (!img) {
-            alert("Please upload an image first.");
+        if (!cropper) {
+            alert("Upload and select an area first.");
             return;
         }
 
-        const fileInput = document.getElementById('fileInput');
-        const file = fileInput.files[0];
+        const canvas = cropper.getCroppedCanvas();
+        canvas.toBlob(async (blob) => {
+            const formData = new FormData();
+            formData.append("file", fileInput.files[0]);
+            
+            // Get crop dimensions
+            const cropData = cropper.getData();
+            formData.append("x", Math.round(cropData.x));
+            formData.append("y", Math.round(cropData.y));
+            formData.append("w", Math.round(cropData.width));
+            formData.append("h", Math.round(cropData.height));
 
-        const formData = new FormData();
-        formData.append("file", file);
-        formData.append("x", document.getElementById('x').value);
-        formData.append("y", document.getElementById('y').value);
-        formData.append("w", document.getElementById('w').value);
-        formData.append("h", document.getElementById('h').value);
+            const response = await fetch("/crop", {
+                method: "POST",
+                body: formData
+            });
 
-        const response = await fetch("/crop", {
-            method: "POST",
-            body: formData
+            const data = await response.json();
+
+            if (data.image_url) {
+                document.getElementById('result').innerHTML = `<h3>Cropped Image:</h3>
+                    <img src="${data.image_url}" alt="Cropped Image">`;
+            } else {
+                alert("Failed to crop image.");
+            }
         });
-
-        const data = await response.json();
-
-        if (data.image_url) {
-            const result = document.getElementById('result');
-            result.innerHTML = `<h3>Cropped Image:</h3>
-                                <img src="${data.image_url}" alt="Cropped Image">`;
-        } else {
-            alert("Failed to crop image.");
-        }
     }
 </script>
 
 </body>
-  </html>
+            </html>
