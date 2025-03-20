@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Advanced Image Cropper</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: Arial, sans-serif;
+        }
+        body {
+            background: #f4f4f4;
+            color: #333;
+            line-height: 1.6;
+            padding: 20px;
+        }
+        h1 {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        .container {
+            max-width: 1100px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #fff;
+            box-shadow: 0 0 10px #ccc;
+        }
+        .upload-area {
+            border: 2px dashed #ccc;
+            padding: 30px;
+            text-align: center;
+            cursor: pointer;
+        }
+        .upload-area:hover {
+            background: #f0f0f0;
+        }
+        input[type="file"] {
+            display: none;
+        }
+        .preview {
+            display: flex;
+            justify-content: center;
+            margin-top: 20px;
+        }
+        img {
+            max-width: 100%;
+            height: auto;
+            border: 2px solid #ddd;
+            border-radius: 5px;
+        }
+        canvas {
+            border: 2px solid #ddd;
+        }
+        .controls {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 20px;
+        }
+        .controls label {
+            margin-right: 10px;
+        }
+        button {
+            padding: 10px 20px;
+            color: #fff;
+            background: #28a745;
+            border: none;
+            cursor: pointer;
+        }
+        button:hover {
+            background: #218838;
+        }
+        .result {
+            margin-top: 20px;
+        }
+        .result img {
+            max-width: 100%;
+            border: 3px solid #4caf50;
+            border-radius: 10px;
+        }
+    </style>
+</head>
+<body>
+
+<h1>🔥 Advanced Image Cropper</h1>
+
+<div class="container">
+    <div class="upload-area" onclick="document.getElementById('fileInput').click()">
+        Click here to upload an image
+        <input type="file" id="fileInput" accept="image/*">
+    </div>
+
+    <div class="preview" id="preview"></div>
+
+    <div class="controls">
+        <div>
+            <label>X: <input type="number" id="x" value="50"></label>
+            <label>Y: <input type="number" id="y" value="50"></label>
+            <label>Width: <input type="number" id="w" value="200"></label>
+            <label>Height: <input type="number" id="h" value="200"></label>
+        </div>
+        <button onclick="cropImage()">Crop Image</button>
+    </div>
+
+    <div class="result" id="result"></div>
+</div>
+
+<script>
+    let img = null;
+    const preview = document.getElementById('preview');
+
+    document.getElementById('fileInput').addEventListener('change', function(event) {
+        const file = event.target.files[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                preview.innerHTML = `<img src="${e.target.result}" id="image">`;
+                img = document.getElementById('image');
+            };
+            reader.readAsDataURL(file);
+        }
+    });
+
+    async function cropImage() {
+        if (!img) {
+            alert("Please upload an image first.");
+            return;
+        }
+
+        const fileInput = document.getElementById('fileInput');
+        const file = fileInput.files[0];
+
+        const formData = new FormData();
+        formData.append("file", file);
+        formData.append("x", document.getElementById('x').value);
+        formData.append("y", document.getElementById('y').value);
+        formData.append("w", document.getElementById('w').value);
+        formData.append("h", document.getElementById('h').value);
+
+        const response = await fetch("/crop", {
+            method: "POST",
+            body: formData
+        });
+
+        const data = await response.json();
+
+        if (data.image_url) {
+            const result = document.getElementById('result');
+            result.innerHTML = `<h3>Cropped Image:</h3>
+                                <img src="${data.image_url}" alt="Cropped Image">`;
+        } else {
+            alert("Failed to crop image.");
+        }
+    }
+</script>
+
+</body>
+  </html>
